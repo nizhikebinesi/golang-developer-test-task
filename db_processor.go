@@ -19,13 +19,13 @@ import (
 )
 
 type (
-	JsonObjectsProcessorFunc func(io.Reader) error
+	jsonObjectsProcessorFunc func(io.Reader) error
 
 	// DBProcessor needs for dependency injection
 	DBProcessor struct {
 		client        *redclient.RedisClient
 		logger        *zap.Logger
-		jsonProcessor JsonObjectsProcessorFunc
+		jsonProcessor jsonObjectsProcessorFunc
 	}
 
 	// Handler is type for handler function
@@ -39,7 +39,7 @@ func NewDBProcessor(client *redclient.RedisClient, logger *zap.Logger) *DBProces
 	d := &DBProcessor{}
 	d.client = client
 	d.logger = logger
-	d.jsonProcessor = func(prc infoProcessor) JsonObjectsProcessorFunc {
+	d.jsonProcessor = func(prc infoProcessor) jsonObjectsProcessorFunc {
 		return func(reader io.Reader) error {
 			return d.processJSONs(reader, prc)
 		}
@@ -90,7 +90,7 @@ func (d *DBProcessor) processJSONs(reader io.Reader, processor infoProcessor) (e
 }
 
 // processFileFromURL handle json file from URL
-func (d *DBProcessor) processFileFromURL(url string, processor JsonObjectsProcessorFunc) (err error) {
+func (d *DBProcessor) processFileFromURL(url string, processor jsonObjectsProcessorFunc) (err error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		d.logger.Error("error inside processFileFromURL",
@@ -112,7 +112,7 @@ func (d *DBProcessor) processFileFromURL(url string, processor JsonObjectsProces
 }
 
 // processFileFromRequest handle json file from request
-func (d *DBProcessor) processFileFromRequest(r *http.Request, fileName string, processor JsonObjectsProcessorFunc) (err error) {
+func (d *DBProcessor) processFileFromRequest(r *http.Request, fileName string, processor jsonObjectsProcessorFunc) (err error) {
 	file, _, err := r.FormFile(fileName)
 	if err != nil {
 		d.logger.Error("error inside processFileFromRequest",
