@@ -247,12 +247,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	paginationObj.Size = totalSize
 	paginationObj.Data = infoList
 
-	bs, err = easyjson.Marshal(paginationObj)
-	if err != nil {
-		d.logger.Error("during marshaling paginationObj", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	bs, _ = easyjson.Marshal(paginationObj)
 	w.Header().Set("Content-Type", "application/json; charset=windows-1251")
 	_, err = w.Write(bs)
 	if err != nil {

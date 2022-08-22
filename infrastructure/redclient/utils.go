@@ -13,10 +13,7 @@ import (
 
 // AddValue add info to Redis storage
 func (r *RedisClient) AddValue(ctx context.Context, info structs.Info) (err error) {
-	bs, err := easyjson.Marshal(info)
-	if err != nil {
-		return err
-	}
+	bs, _ := easyjson.Marshal(info)
 
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
