@@ -27,7 +27,7 @@ func (errReader) Read(p []byte) (n int, err error) {
 	return 0, errors.New("test error")
 }
 
-func TestProcessJSONsErrReadAll(t *testing.T) {
+func TestProcessJSONsReadAllErr(t *testing.T) {
 	db, _ := redismock.NewClientMock()
 	client := &redclient.RedisClient{*db, 10}
 

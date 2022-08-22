@@ -16,7 +16,6 @@ import (
 
 	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
-	"golang.org/x/text/encoding/charmap"
 )
 
 type (
@@ -60,19 +59,20 @@ func (d *DBProcessor) saveInfo(info structs.Info) {
 
 // processJSONs read jsons from reader and write it to Redis client
 func (d *DBProcessor) processJSONs(reader io.Reader, processor infoProcessor) (err error) {
-	bs, err := io.ReadAll(reader)
+	out, err := io.ReadAll(reader)
 	if err != nil {
 		d.logger.Error("error inside processJSONs during ReadAll",
 			zap.Error(err))
 		return err
 	}
-	dec := charmap.Windows1251.NewDecoder()
-	out, err := dec.Bytes(bs)
-	if err != nil {
-		d.logger.Error("error inside processJSONs during change encoding to cp1251",
-			zap.Error(err))
-		return err
-	}
+	// TODO: add work with encodings
+	// dec := charmap.Windows1251.NewDecoder()
+	// out, err := dec.Bytes(bs)
+	// if err != nil {
+	//	d.logger.Error("error inside processJSONs during change encoding to cp1251",
+	//		zap.Error(err))
+	//	return err
+	//}
 	var infoList structs.InfoList
 	err = easyjson.Unmarshal(out, &infoList)
 	if err != nil {
