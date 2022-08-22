@@ -181,7 +181,6 @@ func TestHandleSearchMode(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	// processor.HandleLoadFile(res, req)
 	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
@@ -266,7 +265,6 @@ func TestHandleSearchModeEn(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	// processor.HandleLoadFile(res, req)
 	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
@@ -349,7 +347,6 @@ func TestHandleSearchID(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	// processor.HandleLoadFile(res, req)
 	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
@@ -432,7 +429,6 @@ func TestHandleSearchIDEn(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	// processor.HandleLoadFile(res, req)
 	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
@@ -514,7 +510,6 @@ func TestHandleSearchSystemObjectID(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	// processor.HandleLoadFile(res, req)
 	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
@@ -597,7 +592,6 @@ func TestHandleSearchGlobalID(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	// processor.HandleLoadFile(res, req)
 	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
@@ -1052,7 +1046,6 @@ func TestHandleSearchWithoutNilSearchObject(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", nil)
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	// processor.HandleLoadFile(res, req)
 	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
@@ -1079,7 +1072,6 @@ func TestHandleSearchWithoutNecessaryParamsInsideSearchObject(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	// processor.HandleLoadFile(res, req)
 	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
@@ -1127,7 +1119,6 @@ func TestHandleLoadFileWrongFileName(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/load_file", body)
 	req.Header.Add("Content-Type", writer.FormDataContentType())
 	res := httptest.NewRecorder()
-	// processor.HandleLoadFile(res, req)
 	h := processor.MethodMiddleware(processor.HandleLoadFile, "POST")
 	h(res, req)
 
