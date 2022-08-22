@@ -247,12 +247,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	paginationObj.Size = totalSize
 	paginationObj.Data = infoList
 
-	bs, err = easyjson.Marshal(paginationObj)
-	if err != nil {
-		d.logger.Error("during marshaling paginationObj", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	bs, _ = easyjson.Marshal(paginationObj)
 	w.Header().Set("Content-Type", "application/json; charset=windows-1251")
 	_, err = w.Write(bs)
 	if err != nil {
@@ -264,15 +259,8 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 func (d *DBProcessor) HandleMainPage(w http.ResponseWriter, r *http.Request) {
 	tmp := time.Now().Unix()
 	h := md5.New()
-	_, err := io.WriteString(h, strconv.FormatInt(tmp, 10))
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	_, _ = io.WriteString(h, strconv.FormatInt(tmp, 10))
 	token := fmt.Sprintf("%x", h.Sum(nil))
 	t, _ := template.ParseFiles("static/index.tmpl")
-	err = t.Execute(w, token)
-	if err != nil {
-		panic(err)
-	}
+	_ = t.Execute(w, token)
 }

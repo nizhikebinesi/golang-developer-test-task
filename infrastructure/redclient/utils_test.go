@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"golang-developer-test-task/structs"
+	"strings"
 	"testing"
 
 	"github.com/mailru/easyjson"
@@ -314,6 +315,38 @@ func TestFindValuesSingleNothing(t *testing.T) {
 	}
 	if size := len(infoList); int64(size) != totalSize {
 		t.Errorf("infoList length is not equal to totalSize; len(infoList) = %d ; totalSize = %d", size, totalSize)
+	}
+}
+
+func TestFindValuesSingleErrDuringUnmarshalAfterGet(t *testing.T) {
+	key := "777"
+	db, mock := redismock.NewClientMock()
+	mock.ExpectGet(key).SetVal(key)
+	client := &RedisClient{*db, 10}
+
+	_, _, err := client.FindValues(context.Background(), key, false, 0, 0)
+	fmt.Println(err)
+	if !strings.Contains(err.Error(), "parse error:") {
+		t.Fatal(err)
+	}
+}
+
+func TestFindValuesMultipleErrDuringUnmarshalAfterGet(t *testing.T) {
+	key := "mode:777"
+	db, mock := redismock.NewClientMock()
+	var start, end, paginationSize int64
+	paginationSize = 5
+	start = 0
+	end = start + paginationSize
+	mock.ExpectLLen(key).SetVal(1)
+	mock.ExpectLRange(key, start, end).SetVal([]string{key})
+	mock.ExpectGet(key).SetVal(key)
+	client := &RedisClient{*db, 10}
+
+	_, _, err := client.FindValues(context.Background(), key, true, paginationSize, start)
+	fmt.Println(err)
+	if !strings.Contains(err.Error(), "parse error:") {
+		t.Fatal(err)
 	}
 }
 
