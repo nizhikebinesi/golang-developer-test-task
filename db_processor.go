@@ -262,8 +262,5 @@ func (d *DBProcessor) HandleMainPage(w http.ResponseWriter, r *http.Request) {
 	}
 	token := fmt.Sprintf("%x", h.Sum(nil))
 	t, _ := template.ParseFiles("static/index.tmpl")
-	err = t.Execute(w, token)
-	if err != nil {
-		panic(err)
-	}
+	_ = t.Execute(w, token)
 }
