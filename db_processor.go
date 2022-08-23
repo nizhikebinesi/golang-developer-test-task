@@ -16,7 +16,6 @@ import (
 
 	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
-	"golang.org/x/text/encoding/charmap"
 )
 
 type (
@@ -60,19 +59,20 @@ func (d *DBProcessor) saveInfo(info structs.Info) {
 
 // processJSONs read jsons from reader and write it to Redis client
 func (d *DBProcessor) processJSONs(reader io.Reader, processor infoProcessor) (err error) {
-	bs, err := io.ReadAll(reader)
+	out, err := io.ReadAll(reader)
 	if err != nil {
 		d.logger.Error("error inside processJSONs during ReadAll",
 			zap.Error(err))
 		return err
 	}
-	dec := charmap.Windows1251.NewDecoder()
-	out, err := dec.Bytes(bs)
-	if err != nil {
-		d.logger.Error("error inside processJSONs during change encoding to cp1251",
-			zap.Error(err))
-		return err
-	}
+	// TODO: add work with encodings
+	// dec := charmap.Windows1251.NewDecoder()
+	// out, err := dec.Bytes(bs)
+	// if err != nil {
+	//	d.logger.Error("error inside processJSONs during change encoding to cp1251",
+	//		zap.Error(err))
+	//	return err
+	//}
 	var infoList structs.InfoList
 	err = easyjson.Unmarshal(out, &infoList)
 	if err != nil {
@@ -107,9 +107,6 @@ func (d *DBProcessor) processFileFromURL(url string, processor jsonObjectsProces
 		d.logger.Error(s)
 		return errors.New(s)
 	}
-	defer func() {
-		err = resp.Body.Close()
-	}()
 	err = processor(resp.Body)
 	return err
 }
@@ -160,16 +157,19 @@ func (d *DBProcessor) HandleLoadFile(w http.ResponseWriter, r *http.Request) {
 func (d *DBProcessor) HandleLoadFromURL(w http.ResponseWriter, r *http.Request) {
 	bs, err := io.ReadAll(r.Body)
 	if err != nil {
+		d.logger.Error("during ReadAll in HandleLoadFromURL")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	var urlObj structs.URLObject
 	err = easyjson.Unmarshal(bs, &urlObj)
 	if err != nil {
+		d.logger.Error("during Unmarshal in HandleLoadFromURL")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if _, err := url.Parse(urlObj.URL); err != nil {
+		d.logger.Error("during url parsing in HandleLoadFromURL")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -238,12 +238,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	paginationObj.Size = totalSize
 	paginationObj.Data = infoList
 
-	bs, err = easyjson.Marshal(paginationObj)
-	if err != nil {
-		d.logger.Error("during marshaling paginationObj", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	bs, _ = easyjson.Marshal(paginationObj)
 	w.Header().Set("Content-Type", "application/json; charset=windows-1251")
 	_, err = w.Write(bs)
 	if err != nil {
@@ -255,11 +250,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 func (d *DBProcessor) HandleMainPage(w http.ResponseWriter, r *http.Request) {
 	tmp := time.Now().Unix()
 	h := md5.New()
-	_, err := io.WriteString(h, strconv.FormatInt(tmp, 10))
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	_, _ = io.WriteString(h, strconv.FormatInt(tmp, 10))
 	token := fmt.Sprintf("%x", h.Sum(nil))
 	t, _ := template.ParseFiles("static/index.tmpl")
 	_ = t.Execute(w, token)

@@ -2,6 +2,7 @@ package redclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"golang-developer-test-task/structs"
 	"strings"
@@ -12,10 +13,7 @@ import (
 
 // AddValue add info to Redis storage
 func (r *RedisClient) AddValue(ctx context.Context, info structs.Info) (err error) {
-	bs, err := easyjson.Marshal(info)
-	if err != nil {
-		return err
-	}
+	bs, _ := easyjson.Marshal(info)
 
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
@@ -41,10 +39,11 @@ func (r *RedisClient) AddValue(ctx context.Context, info structs.Info) (err erro
 		return err
 	}
 
-	maxRetries := 10
-	for i := 0; i < maxRetries; i++ {
+	for i := 0; i < r.MaxRetries; i++ {
 		err = r.Watch(ctx, txf, info.SystemObjectID, globalID, id, idEn, mode, modeEn)
-		if err != redis.TxFailedErr {
+		if !errors.Is(err, redis.TxFailedErr) {
+			// if err != redis.TxFailedErr {
+			fmt.Printf("%v ahaha", err)
 			return err
 		}
 	}
