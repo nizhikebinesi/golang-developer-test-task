@@ -240,10 +240,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 
 	bs, _ = easyjson.Marshal(paginationObj)
 	w.Header().Set("Content-Type", "application/json; charset=windows-1251")
-	_, err = w.Write(bs)
-	if err != nil {
-		panic(err)
-	}
+	_, _ = w.Write(bs)
 }
 
 // HandleMainPage is handler for main page
