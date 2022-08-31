@@ -1,47 +1,21 @@
-# Image page: <https://hub.docker.com/_/golang>
-FROM golang:1.18-alpine as builder
+FROM golang:1.18.3-alpine as build
+RUN apk add --update --no-cache git
 
-RUN set -x \
-    && mkdir /src \
-    # SSL ca certificates (ca-certificates is required to call HTTPS endpoints)
-    && apk add --no-cache ca-certificates \
-    && update-ca-certificates
+ENV GO111MODULE=on
 
-WORKDIR /src
+WORKDIR /usr/src/app
+RUN mkdir bin
+COPY go.mod .
+COPY go.sum .
 
-COPY ./go.* ./
+RUN go mod download
 
-# Burn modules cache
-RUN set -x \
-    && go version \
-    && go mod download \
-    && go mod verify
+COPY . .
+RUN go build -o bin/app
 
-COPY . /src
+# FROM alpine:latest
+RUN apk add ca-certificates
+RUN apk add --update --no-cache curl
+# COPY --from=build /usr/src/app/bin/app /usr/local/bin/app
 
-RUN set -x \
-    && go version \
-    && GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /tmp/app .
-
-# Image page: <https://hub.docker.com/_/alpine>
-FROM alpine:latest as runtime
-
-RUN set -x \
-    # Unprivileged user creation <https://stackoverflow.com/a/55757473/12429735RUN>
-    && adduser \
-        --disabled-password \
-        --gecos "" \
-        --home "/nonexistent" \
-        --shell "/sbin/nologin" \
-        --no-create-home \
-        --uid "10001" \
-        "appuser"
-
-# Use an unprivileged user
-USER appuser:appuser
-
-# Import from builder
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /tmp/app /bin/app
-
-ENTRYPOINT ["/bin/app"]
+CMD ["/usr/src/app/bin/app"]
