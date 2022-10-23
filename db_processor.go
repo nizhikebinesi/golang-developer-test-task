@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"golang-developer-test-task/infrastructure/redclient"
 	"golang-developer-test-task/structs"
 	"html/template"
@@ -50,7 +51,7 @@ func NewDBProcessor(client *redclient.RedisClient, logger *zap.Logger) *DBProces
 // saveInfo is method for info saving to DB
 func (d *DBProcessor) saveInfo(info structs.Info) {
 	err := d.client.AddValue(context.Background(), info)
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		d.logger.Error("error inside processJSONs in goroutine",
 			zap.Error(err))
 		return
@@ -142,12 +143,13 @@ func (d *DBProcessor) MethodMiddleware(handler Handler, validMethod string) Hand
 func (d *DBProcessor) HandleLoadFile(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(32 << 20)
 	if err != nil {
+		d.logger.Error("error during file parsing in HandleLoadFile", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	err = d.processFileFromRequest(r, "uploadFile", d.jsonProcessor)
 	if err != nil {
-		d.logger.Error("error during file processing", zap.Error(err))
+		d.logger.Error("error during file processing in HandleLoadFile", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -223,7 +225,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
+	ctx := context.Background()
 	paginationObj := structs.PaginationObject{}
 	paginationObj.Offset = int64(searchObj.Offset)
 	var paginationSize int64 = 5
