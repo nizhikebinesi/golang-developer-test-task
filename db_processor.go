@@ -232,7 +232,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	infoList, totalSize, err := d.client.FindValues(
 		ctx, searchStr, multiple, paginationSize,
 		paginationObj.Offset)
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		d.logger.Error("during search in DB", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
