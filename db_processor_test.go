@@ -56,7 +56,7 @@ func TestHandleMainPage(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/", nil)
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleMainPage, "GET")
+	h := processor.methodMiddleware(processor.HandleMainPage, "GET")
 	h(res, req)
 
 	if res.Code != http.StatusOK {
@@ -77,7 +77,7 @@ func TestHandleMainPageBadRequest(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/", nil)
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleMainPage, "GET")
+	h := processor.methodMiddleware(processor.HandleMainPage, "GET")
 	h(res, req)
 
 	if res.Code != http.StatusBadRequest {
@@ -98,7 +98,7 @@ func TestSearchURLErrReader(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/search", errReader(0))
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -119,7 +119,7 @@ func TestHandleSearchBadRequest(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/api/search", nil)
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusBadRequest {
@@ -140,8 +140,8 @@ func TestHandleSearchMode(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%s", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
+	mode := fmt.Sprintf("mode:%group", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -181,7 +181,7 @@ func TestHandleSearchMode(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusOK {
@@ -224,8 +224,8 @@ func TestHandleSearchModeEn(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%s", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
+	mode := fmt.Sprintf("mode:%group", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -265,7 +265,7 @@ func TestHandleSearchModeEn(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusOK {
@@ -308,8 +308,8 @@ func TestHandleSearchID(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%s", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
+	mode := fmt.Sprintf("mode:%group", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -347,7 +347,7 @@ func TestHandleSearchID(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusOK {
@@ -390,8 +390,8 @@ func TestHandleSearchIDEn(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%s", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
+	mode := fmt.Sprintf("mode:%group", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -429,7 +429,7 @@ func TestHandleSearchIDEn(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusOK {
@@ -472,8 +472,8 @@ func TestHandleSearchSystemObjectID(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%s", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
+	mode := fmt.Sprintf("mode:%group", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -510,7 +510,7 @@ func TestHandleSearchSystemObjectID(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusOK {
@@ -553,8 +553,8 @@ func TestHandleSearchGlobalID(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%s", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
+	mode := fmt.Sprintf("mode:%group", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -592,7 +592,7 @@ func TestHandleSearchGlobalID(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs1))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusOK {
@@ -649,7 +649,7 @@ func TestHandleSearchErrDuringSearch(t *testing.T) {
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
 	// processor.HandleLoadFile(res, req)
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -670,7 +670,7 @@ func TestHandleLoadFromURLErrReader(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/load_from_url", errReader(0))
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFromURL, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -691,7 +691,7 @@ func TestHandleLoadFromURLBadRequest(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/api/load_from_url", nil)
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFromURL, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusBadRequest {
@@ -723,7 +723,7 @@ func TestHandleLoadFromURLResourceWithoutFile(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/load_from_url", bytes.NewBuffer(bs))
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFromURL, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -758,7 +758,7 @@ func TestHandleLoadFromURLResourceWithoutFileButRightContentType(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/load_from_url", bytes.NewBuffer(bs))
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFromURL, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -793,7 +793,7 @@ func TestHandleLoadFromURLResourceBadFile(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/load_from_url", bytes.NewBuffer(bs))
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFromURL, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -820,7 +820,7 @@ func TestHandleLoadFromURLWrongResource(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/load_from_url", bytes.NewBuffer(bs))
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFromURL, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -847,7 +847,7 @@ func TestHandleLoadFromURLWrongURLResource(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/load_from_url", bytes.NewBuffer(bs))
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFromURL, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusBadRequest {
@@ -868,7 +868,7 @@ func TestHandleLoadFromURLNilBody(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/load_from_url", nil)
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFromURL, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -889,7 +889,7 @@ func TestHandleLoadFileBadRequest(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/api/load_file", nil)
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFile, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFile, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusBadRequest {
@@ -909,7 +909,7 @@ func TestHandleLoadFromURLWrongMethod(t *testing.T) {
 	processor := NewDBProcessor(client, logger)
 	req := httptest.NewRequest("POST", "/api/load_from_url", nil)
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFromURL, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -929,7 +929,7 @@ func TestHandleLoadFileWrongMethod(t *testing.T) {
 	processor := NewDBProcessor(client, logger)
 	req := httptest.NewRequest("POST", "/api/load_file", nil)
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFile, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFile, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -976,7 +976,7 @@ func TestHandleLoadFile(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/load_file", body)
 	req.Header.Add("Content-Type", writer.FormDataContentType())
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFile, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFile, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusOK {
@@ -1023,7 +1023,7 @@ func TestHandleLoadFileWithParenthesisProblem(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/load_file", body)
 	req.Header.Add("Content-Type", writer.FormDataContentType())
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFile, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFile, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -1046,7 +1046,7 @@ func TestHandleSearchWithoutNilSearchObject(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", nil)
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {
@@ -1072,7 +1072,7 @@ func TestHandleSearchWithoutNecessaryParamsInsideSearchObject(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/search", bytes.NewBuffer(bs))
 	req.Header.Add("Content-Type", "application/json")
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleSearch, "POST")
+	h := processor.methodMiddleware(processor.HandleSearch, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusBadRequest {
@@ -1119,7 +1119,7 @@ func TestHandleLoadFileWrongFileName(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/load_file", body)
 	req.Header.Add("Content-Type", writer.FormDataContentType())
 	res := httptest.NewRecorder()
-	h := processor.MethodMiddleware(processor.HandleLoadFile, "POST")
+	h := processor.methodMiddleware(processor.HandleLoadFile, "POST")
 	h(res, req)
 
 	if res.Code != http.StatusInternalServerError {

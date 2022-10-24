@@ -11,12 +11,13 @@ import (
 	"golang.org/x/sync/singleflight"
 	"io"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	// https://github.com/uber-go/automaxprocs
-	_ "go.uber.org/automaxprocs"
+	//_ "go.uber.org/automaxprocs"
 	"go.uber.org/zap"
 )
 
@@ -106,7 +107,7 @@ func Gzip(handler http.Handler) http.Handler {
 }
 
 func main() {
-	//runtime.GOMAXPROCS(4)
+	runtime.GOMAXPROCS(2)
 	port := "8080"
 
 	logger, err := zap.NewProduction()
@@ -131,9 +132,15 @@ func main() {
 
 	s := &singleflight.Group{}
 
+	timeout := 5 * time.Minute
+
 	cache := ttlcache.New[string, structs.PaginationObject](
-		ttlcache.WithTTL[string, structs.PaginationObject](5 * time.Minute))
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
 	go cache.Start()
+
+	//respCache := ttlcache.New[string, string](
+	//	ttlcache.WithTTL[string, string](timeout))
+	//go respCache.Start()
 
 	//var pool = &sync.Pool{
 	//	New: func() interface{} {
@@ -157,13 +164,16 @@ func main() {
 
 	mux.HandleFunc("/api/load_from_url", dbLogic.HandleLoadFromURL)
 
+	mux.HandleFunc("/api/load_from_json", dbLogic.HandleLoadJSON)
+
 	//https://nimblehq.co/blog/getting-started-with-redisearch
 	mux.HandleFunc("/api/search", dbLogic.HandleSearch)
 
 	mux.HandleFunc("/", dbLogic.HandleMainPage)
 
-	//wrappedHandler := timeTrackingMiddleware(mux)
-	wrappedHandler := Gzip(timeTrackingMiddleware(mux))
+	wrappedHandler := timeTrackingMiddleware(mux)
+	//wrappedHandler := Gzip(timeTrackingMiddleware(mux))
+	//wrappedHandler := timeTrackingMiddleware(Gzip(mux))
 
 	err = http.ListenAndServe(":"+port, wrappedHandler)
 	if err != nil {

@@ -7,13 +7,15 @@ import (
 	"golang-developer-test-task/structs"
 	"strings"
 
-	"github.com/go-redis/redis/v8"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mailru/easyjson"
+
+	"github.com/go-redis/redis/v8"
 )
 
 // AddValue add info to Redis storage
 func (r *RedisClient) AddValue(ctx context.Context, info structs.Info) (err error) {
-	bs, _ := easyjson.Marshal(info)
+	bs, _ := jsoniter.Marshal(info)
 
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
@@ -43,7 +45,7 @@ func (r *RedisClient) AddValue(ctx context.Context, info structs.Info) (err erro
 		err = r.Watch(ctx, txf, info.SystemObjectID, globalID, id, idEn, mode, modeEn)
 		if !errors.Is(err, redis.TxFailedErr) {
 			// if err != redis.TxFailedErr {
-			fmt.Printf("%v ahaha", err)
+			// fmt.Printf("%v ahaha", err)
 			return err
 		}
 	}
@@ -64,7 +66,7 @@ func (r *RedisClient) FindValues(ctx context.Context, searchStr string, multiple
 			}
 		}
 		var info structs.Info
-		err = easyjson.Unmarshal([]byte(v), &info)
+		err = jsoniter.Unmarshal([]byte(v), &info)
 		if err != nil {
 			return infoList, 1, err
 		}

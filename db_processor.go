@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/md5"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
@@ -18,7 +19,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
 
@@ -32,8 +32,7 @@ type (
 		jsonProcessor jsonObjectsProcessorFunc
 		group         *singleflight.Group
 		cache         *ttlcache.Cache[string, structs.PaginationObject]
-		//pool          *sync.Pool
-		//pool1         *sync.Pool
+		respCache     *ttlcache.Cache[string, string]
 	}
 
 	// Handler is type for handler function
@@ -44,16 +43,12 @@ type (
 
 // NewDBProcessor is a constructor for creating basic version of DBProcessor
 func NewDBProcessor(client *redclient.RedisClient, logger *zap.Logger,
-	group *singleflight.Group, cache *ttlcache.Cache[string, structs.PaginationObject],
-	// pool, pool1 *sync.Pool
-) *DBProcessor {
+	group *singleflight.Group, cache *ttlcache.Cache[string, structs.PaginationObject]) *DBProcessor {
 	d := &DBProcessor{}
 	d.client = client
 	d.logger = logger
 	d.group = group
 	d.cache = cache
-	//d.pool = pool
-	//d.pool1 = pool1
 	d.jsonProcessor = func(prc infoProcessor) jsonObjectsProcessorFunc {
 		return func(reader io.Reader) error {
 			return d.processJSONs(reader, prc)
@@ -74,53 +69,76 @@ func (d *DBProcessor) saveInfo(info structs.Info) {
 
 // processJSONs read jsons from reader and write it to Redis client
 func (d *DBProcessor) processJSONs(reader io.Reader, processor infoProcessor) (err error) {
-	out, err := io.ReadAll(reader)
-	if err != nil {
-		d.logger.Error("error inside processJSONs during ReadAll",
-			zap.Error(err))
-		return err
-	}
-	// TODO: add work with encodings
-	// dec := charmap.Windows1251.NewDecoder()
-	// out, err := dec.Bytes(bs)
-	// if err != nil {
-	//	d.logger.Error("error inside processJSONs during change encoding to cp1251",
+	//out, err := io.ReadAll(reader)
+	//if err != nil {
+	//	d.logger.Error("error inside processJSONs during ReadAll",
 	//		zap.Error(err))
 	//	return err
 	//}
-	var infoList structs.InfoList
-	err = easyjson.Unmarshal(out, &infoList)
+	dec := json.NewDecoder(reader)
+
+	_, err = dec.Token()
 	if err != nil {
-		d.logger.Error("error inside processJSONs during Unmarshal",
+		d.logger.Error("error inside processJSONs during decoding the first token in stream",
 			zap.Error(err))
 		return err
 	}
+	//for dec.More() {
+	//	var info structs.Info
+	//	err = dec.Decode()
+	//}
 
+	var infoList = make(structs.InfoList, 0)
+	for dec.More() {
+		var info structs.Info
+		err = dec.Decode(&info)
+		if err != nil {
+			d.logger.Error("error inside processJSONs during decoding stream")
+			return err
+		}
+	}
+	//err = jsoniter.Unmarshal(out, &infoList)
+	//if err != nil {
+	//	d.logger.Error("error inside processJSONs during Unmarshal",
+	//		zap.Error(err))
+	//	return err
+	//}
+	_, err = dec.Token()
+	if err != nil {
+		d.logger.Error("error inside processJSONs during decoding the last token in stream",
+			zap.Error(err))
+		return err
+	}
 	for _, info := range infoList {
-		// TODO: should we accumulate json objects to insert?
-		//  or restrict number of goroutines?
 		go processor(info)
 	}
 	return nil
 }
 
 // processFileFromURL handle json file from URL
-func (d *DBProcessor) processFileFromURL(url string, processor jsonObjectsProcessorFunc) (err error) {
-	resp, err := http.Get(url)
+func (d *DBProcessor) processFileFromURL(url string, processor jsonObjectsProcessorFunc) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		d.logger.Error("error inside processFileFromURL",
-			zap.Error(err))
+		d.logger.Error("error during make NewRequest in processFileFromURL", zap.Error(err))
+		return err
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+	client := http.Client{
+		Timeout: 30 * time.Second,
+	}
+	resp, err := client.Do(req)
+	d.logger.Info("AAA!")
+	if err != nil {
+		d.logger.Error("error inside processFileFromURL in singleflight", zap.Error(err))
 		return err
 	}
 	if resp.ContentLength > 32<<20 {
-		s := fmt.Sprintf("too big resp body: %d", resp.ContentLength)
-		d.logger.Error(s)
-		return errors.New(s)
+		d.logger.Error("too big resp body", zap.Int64("content_length", resp.ContentLength))
+		return errors.New("too big resp body in processFileFromURL")
 	}
-	if contentType := resp.Header.Get("Content-Type"); contentType != "application/json" {
-		s := fmt.Sprintf("unsupported Content-Type: %s", contentType)
-		d.logger.Error(s)
-		return errors.New(s)
+	if contentType := resp.Header.Get("Content-Type"); contentType != "application/json" && contentType != "application/octet-stream" {
+		d.logger.Error("unsupported Content-Type", zap.String("content_type", contentType))
+		return errors.New("unsupported Content-Type")
 	}
 	err = processor(resp.Body)
 	return err
@@ -141,9 +159,8 @@ func (d *DBProcessor) processFileFromRequest(r *http.Request, fileName string, p
 	return err
 }
 
-// MethodMiddleware is a function to return wrapped handler
-func (d *DBProcessor) MethodMiddleware(handler Handler, validMethod string) Handler {
-	// TODO: make this method private, make unwrapped handlers private
+// methodMiddleware is a function to return wrapped handler
+func (d *DBProcessor) methodMiddleware(handler Handler, validMethod string) Handler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != validMethod {
 			w.WriteHeader(http.StatusBadRequest)
@@ -167,6 +184,28 @@ func (d *DBProcessor) HandleLoadFile(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// HandleLoadFile is handler for /api/load_json
+func (d *DBProcessor) HandleLoadJSON(w http.ResponseWriter, r *http.Request) {
+	bs, err := io.ReadAll(r.Body)
+	if err != nil {
+		d.logger.Error("error during using jsonProcessor in HandleLoadJSON", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	var infoList structs.InfoList
+	err = jsoniter.Unmarshal(bs, &infoList)
+	if err != nil {
+		d.logger.Error("error during Unmarshal in HandleLoadJSON", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	for _, info := range infoList {
+		go d.saveInfo(info)
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // HandleLoadFromURL is handler for /api/load_from_url
@@ -178,7 +217,7 @@ func (d *DBProcessor) HandleLoadFromURL(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var urlObj structs.URLObject
-	err = easyjson.Unmarshal(bs, &urlObj)
+	err = jsoniter.Unmarshal(bs, &urlObj)
 	if err != nil {
 		d.logger.Error("during Unmarshal in HandleLoadFromURL")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -195,6 +234,7 @@ func (d *DBProcessor) HandleLoadFromURL(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // HandleSearch is handler for /api/search
@@ -207,10 +247,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var searchObj structs.SearchObject
-	//searchObj := d.pool.Get().(*structs.SearchObject)
-	//err = easyjson.Unmarshal(bs, &searchObj)
 	err = jsoniter.Unmarshal(bs, &searchObj)
-	//err = jsoniter.Unmarshal(bs, searchObj)
 	if err != nil {
 		d.logger.Error("during Unmarshal",
 			zap.Error(err),
@@ -242,22 +279,14 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//ctx := context.Background()
-	//paginationObj := structs.PaginationObject{}
-	//paginationObj.Offset = int64(searchObj.Offset)
-	//var paginationSize int64 = 5
-	//infoList, totalSize, err := d.client.FindValues(
-	//	ctx, searchStr, multiple, paginationSize,
-	//	paginationObj.Offset)
-
 	result, err, _ := d.group.Do(searchStr, func() (interface{}, error) {
+		// TODO: add changing cache on insert to Redis(with condition)
 		item := d.cache.Get(searchStr)
 		if item != nil {
 			return item.Value(), nil
 		}
 
 		ctx := context.Background()
-		//paginationObj := d.pool1.Get().(*structs.PaginationObject)
 		paginationObj := structs.PaginationObject{}
 		paginationObj.Offset = int64(searchObj.Offset)
 		var paginationSize int64 = 5
@@ -280,18 +309,8 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 	paginationObj := result.(structs.PaginationObject)
-	//paginationObj := result.(*structs.PaginationObject)
-	//if err != nil && err != redis.Nil {
-	//	d.logger.Error("during search in DB", zap.Error(err))
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//paginationObj.Size = totalSize
-	//paginationObj.Data = infoList
 
-	//bs, _ = easyjson.Marshal(paginationObj)
 	bs, _ = jsoniter.Marshal(paginationObj)
 	w.Header().Set("Content-Type", "application/json; charset=windows-1251")
 	_, _ = w.Write(bs)
