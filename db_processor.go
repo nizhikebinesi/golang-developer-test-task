@@ -6,8 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"github.com/jellydator/ttlcache/v3"
+	jsoniter "github.com/json-iterator/go"
 	"golang-developer-test-task/infrastructure/redclient"
 	"golang-developer-test-task/structs"
+	"golang.org/x/sync/singleflight"
 	"html/template"
 	"io"
 	"net/http"
@@ -27,6 +30,8 @@ type (
 		client        *redclient.RedisClient
 		logger        *zap.Logger
 		jsonProcessor jsonObjectsProcessorFunc
+		group         *singleflight.Group
+		cache         *ttlcache.Cache[string, structs.PaginationObject]
 	}
 
 	// Handler is type for handler function
@@ -36,10 +41,13 @@ type (
 )
 
 // NewDBProcessor is a constructor for creating basic version of DBProcessor
-func NewDBProcessor(client *redclient.RedisClient, logger *zap.Logger) *DBProcessor {
+func NewDBProcessor(client *redclient.RedisClient, logger *zap.Logger,
+	group *singleflight.Group, cache *ttlcache.Cache[string, structs.PaginationObject]) *DBProcessor {
 	d := &DBProcessor{}
 	d.client = client
 	d.logger = logger
+	d.group = group
+	d.cache = cache
 	d.jsonProcessor = func(prc infoProcessor) jsonObjectsProcessorFunc {
 		return func(reader io.Reader) error {
 			return d.processJSONs(reader, prc)
@@ -193,7 +201,8 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var searchObj structs.SearchObject
-	err = easyjson.Unmarshal(bs, &searchObj)
+	//err = easyjson.Unmarshal(bs, &searchObj)
+	err = jsoniter.Unmarshal(bs, &searchObj)
 	if err != nil {
 		d.logger.Error("during Unmarshal",
 			zap.Error(err),
@@ -220,27 +229,60 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		searchStr = fmt.Sprintf("mode_en:%s", *searchObj.ModeEn)
 		multiple = true
 	default:
-		d.logger.Error("searchObj's all necessary fields are nil")
+		d.logger.Error("searchObj'group all necessary fields are nil")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	ctx := context.Background()
-	paginationObj := structs.PaginationObject{}
-	paginationObj.Offset = int64(searchObj.Offset)
-	var paginationSize int64 = 5
-	infoList, totalSize, err := d.client.FindValues(
-		ctx, searchStr, multiple, paginationSize,
-		paginationObj.Offset)
-	if err != nil && err != redis.Nil {
+	//ctx := context.Background()
+	//paginationObj := structs.PaginationObject{}
+	//paginationObj.Offset = int64(searchObj.Offset)
+	//var paginationSize int64 = 5
+	//infoList, totalSize, err := d.client.FindValues(
+	//	ctx, searchStr, multiple, paginationSize,
+	//	paginationObj.Offset)
+
+	result, err, _ := d.group.Do(searchStr, func() (interface{}, error) {
+		item := d.cache.Get(searchStr)
+		if item != nil {
+			return item.Value(), nil
+		}
+
+		ctx := context.Background()
+		paginationObj := structs.PaginationObject{}
+		paginationObj.Offset = int64(searchObj.Offset)
+		var paginationSize int64 = 5
+		infoList, totalSize, err := d.client.FindValues(
+			ctx, searchStr, multiple, paginationSize,
+			paginationObj.Offset)
+		if err != nil && err != redis.Nil {
+			d.logger.Error("during search in DB in singleflight", zap.Error(err))
+			return paginationObj, err
+		}
+		paginationObj.Size = totalSize
+		paginationObj.Data = infoList
+
+		d.cache.Set(searchStr, paginationObj, ttlcache.DefaultTTL)
+
+		return paginationObj, nil
+	})
+	if err != nil {
 		d.logger.Error("during search in DB", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	paginationObj.Size = totalSize
-	paginationObj.Data = infoList
 
-	bs, _ = easyjson.Marshal(paginationObj)
+	paginationObj := result.(structs.PaginationObject)
+	//if err != nil && err != redis.Nil {
+	//	d.logger.Error("during search in DB", zap.Error(err))
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//paginationObj.Size = totalSize
+	//paginationObj.Data = infoList
+
+	//bs, _ = easyjson.Marshal(paginationObj)
+	bs, _ = jsoniter.Marshal(paginationObj)
 	w.Header().Set("Content-Type", "application/json; charset=windows-1251")
 	_, _ = w.Write(bs)
 }

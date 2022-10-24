@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang-developer-test-task/infrastructure/redclient"
+	"golang-developer-test-task/structs"
+	"golang.org/x/sync/singleflight"
 	"net/http"
 	"strconv"
 	"time"
 
+	// https://github.com/uber-go/automaxprocs
+	_ "go.uber.org/automaxprocs"
 	"go.uber.org/zap"
 )
 
@@ -54,11 +59,12 @@ func timeTrackingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		recorder := &StatusRecorder{
 			ResponseWriter: w,
-			Status:         200,
+			Status:         http.StatusOK,
 		}
 
 		next.ServeHTTP(recorder, r)
 
+		// TODO
 		// r.URL.Path приходит от юзера! не делайте так в проде!
 		status := strconv.Itoa(recorder.Status)
 		statusCounter.WithLabelValues(r.URL.Path, status).
@@ -73,6 +79,7 @@ func timeTrackingMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
+	//runtime.GOMAXPROCS(4)
 	port := "8080"
 
 	logger, err := zap.NewProduction()
@@ -95,7 +102,13 @@ func main() {
 		}
 	}()
 
-	dbLogic := NewDBProcessor(client, logger)
+	s := singleflight.Group{}
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](5 * time.Minute))
+	go cache.Start()
+
+	dbLogic := NewDBProcessor(client, logger, &s, cache)
 	mux := http.NewServeMux()
 
 	mux.Handle("/metrics", promhttp.Handler())
