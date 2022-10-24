@@ -32,6 +32,8 @@ type (
 		jsonProcessor jsonObjectsProcessorFunc
 		group         *singleflight.Group
 		cache         *ttlcache.Cache[string, structs.PaginationObject]
+		//pool          *sync.Pool
+		//pool1         *sync.Pool
 	}
 
 	// Handler is type for handler function
@@ -42,12 +44,16 @@ type (
 
 // NewDBProcessor is a constructor for creating basic version of DBProcessor
 func NewDBProcessor(client *redclient.RedisClient, logger *zap.Logger,
-	group *singleflight.Group, cache *ttlcache.Cache[string, structs.PaginationObject]) *DBProcessor {
+	group *singleflight.Group, cache *ttlcache.Cache[string, structs.PaginationObject],
+	// pool, pool1 *sync.Pool
+) *DBProcessor {
 	d := &DBProcessor{}
 	d.client = client
 	d.logger = logger
 	d.group = group
 	d.cache = cache
+	//d.pool = pool
+	//d.pool1 = pool1
 	d.jsonProcessor = func(prc infoProcessor) jsonObjectsProcessorFunc {
 		return func(reader io.Reader) error {
 			return d.processJSONs(reader, prc)
@@ -201,8 +207,10 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var searchObj structs.SearchObject
+	//searchObj := d.pool.Get().(*structs.SearchObject)
 	//err = easyjson.Unmarshal(bs, &searchObj)
 	err = jsoniter.Unmarshal(bs, &searchObj)
+	//err = jsoniter.Unmarshal(bs, searchObj)
 	if err != nil {
 		d.logger.Error("during Unmarshal",
 			zap.Error(err),
@@ -249,6 +257,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ctx := context.Background()
+		//paginationObj := d.pool1.Get().(*structs.PaginationObject)
 		paginationObj := structs.PaginationObject{}
 		paginationObj.Offset = int64(searchObj.Offset)
 		var paginationSize int64 = 5
@@ -273,6 +282,7 @@ func (d *DBProcessor) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	paginationObj := result.(structs.PaginationObject)
+	//paginationObj := result.(*structs.PaginationObject)
 	//if err != nil && err != redis.Nil {
 	//	d.logger.Error("during search in DB", zap.Error(err))
 	//	w.WriteHeader(http.StatusInternalServerError)

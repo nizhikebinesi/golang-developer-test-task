@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/prometheus/client_golang/prometheus"
@@ -8,8 +9,10 @@ import (
 	"golang-developer-test-task/infrastructure/redclient"
 	"golang-developer-test-task/structs"
 	"golang.org/x/sync/singleflight"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	// https://github.com/uber-go/automaxprocs
@@ -78,6 +81,30 @@ func timeTrackingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// Gzip Compression
+type gzipResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+}
+
+func (w gzipResponseWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+func Gzip(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		gzw := gzipResponseWriter{Writer: gz, ResponseWriter: w}
+		handler.ServeHTTP(gzw, r)
+	})
+}
+
 func main() {
 	//runtime.GOMAXPROCS(4)
 	port := "8080"
@@ -102,13 +129,26 @@ func main() {
 		}
 	}()
 
-	s := singleflight.Group{}
+	s := &singleflight.Group{}
 
 	cache := ttlcache.New[string, structs.PaginationObject](
 		ttlcache.WithTTL[string, structs.PaginationObject](5 * time.Minute))
 	go cache.Start()
 
-	dbLogic := NewDBProcessor(client, logger, &s, cache)
+	//var pool = &sync.Pool{
+	//	New: func() interface{} {
+	//		s := structs.SearchObject{}
+	//		return &s
+	//	}}
+	//var pool1 = &sync.Pool{
+	//	New: func() interface{} {
+	//		s := structs.PaginationObject{}
+	//		return &s
+	//	},
+	//}
+
+	//dbLogic := NewDBProcessor(client, logger, s, cache, pool, pool1)
+	dbLogic := NewDBProcessor(client, logger, s, cache)
 	mux := http.NewServeMux()
 
 	mux.Handle("/metrics", promhttp.Handler())
@@ -122,7 +162,8 @@ func main() {
 
 	mux.HandleFunc("/", dbLogic.HandleMainPage)
 
-	wrappedHandler := timeTrackingMiddleware(mux)
+	//wrappedHandler := timeTrackingMiddleware(mux)
+	wrappedHandler := Gzip(timeTrackingMiddleware(mux))
 
 	err = http.ListenAndServe(":"+port, wrappedHandler)
 	if err != nil {
