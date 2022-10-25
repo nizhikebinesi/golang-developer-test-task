@@ -18,6 +18,7 @@ func NewRedisClient(ctx context.Context, config RedisConfig) *RedisClient {
 		Addr:     config.Addr,
 		Password: config.Password,
 		DB:       config.DB,
+		PoolSize: config.PoolSize,
 	}
 	client := redis.NewClient(&options)
 

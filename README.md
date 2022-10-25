@@ -20,7 +20,7 @@
 
 
 [badge_build]:https://img.shields.io/github/workflow/status/nizhikebinesi/golang-developer-test-task/tests
-[badge_language]:https://img.shields.io/badge/language-go_1.18-blue.svg?longCache=true
+[badge_language]:https://img.shields.io/badge/language-go_1.19-blue.svg?longCache=true
 [badge_use_template]:https://img.shields.io/badge/start-this_template_using-success.svg?longCache=true
 [link_build]:https://github.com/nizhikebinesi/golang-developer-test-task/actions
 [dataset_link]:https://data.gov.ru/opendata/7704786030-taxiparking

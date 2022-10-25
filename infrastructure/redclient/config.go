@@ -10,6 +10,7 @@ type RedisConfig struct {
 	Addr     string
 	Password string
 	DB       int
+	PoolSize int
 }
 
 // Load is useful for loading RedisConfig data
@@ -21,4 +22,5 @@ func (r *RedisConfig) Load() {
 		panic(err)
 	}
 	r.DB = int(DB)
+	r.PoolSize = 1000
 }

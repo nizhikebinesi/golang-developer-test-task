@@ -6,23 +6,51 @@ volumes:
 
 services:
   app:
-    image: golang:1.18-stretch # Image page: <https://hub.docker.com/_/golang>
-    working_dir: /src
-    environment:
-      HOME: /tmp
-      GOPATH: /tmp
-    volumes:
-      - /etc/passwd:/etc/passwd:ro
-      - /etc/group:/etc/group:ro
-      - .:/src:cached
-      - tmp-data:/tmp:cached
+#    image: golang:1.18-stretch # Image page: <https://hub.docker.com/_/golang>
+#    working_dir: /src
+#    environment:
+#      HOME: /tmp
+#      GOPATH: /tmp
+#    volumes:
+#      - /etc/passwd:/etc/passwd:ro
+#      - /etc/group:/etc/group:ro
+#      - .:/src:cached
+#      - tmp-data:/tmp:cached
+    build:
+      dockerfile: ./Dockerfile
+      context: ./
+    env_file:
+      - .env
+    ports:
+      - 8080:8080
     depends_on:
       - redis
 
   redis:
     image: redis:6.0.5-alpine
-    volumes:
-      - redis-data:/data:cached
+#    command: >
+#      --requirepass ${REDIS_PASSWORD}
+#    env_file:
+#      - .env
+#    volumes:
+#      - redis-data:/data:cached
     ports:
-      - 6379
+#      - 6379
       - '6379:6379/tcp'
+
+  prometheus:
+    image: prom/prometheus:v2.38.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:9.1.2
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=secret
+#    volumes:
+#      - ./grafana/provisioning:/etc/grafana/provisioning
+#      - ./grafana/dashboards:/var/lib/grafana/dashboards
