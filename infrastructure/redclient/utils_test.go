@@ -591,7 +591,7 @@ func TestAddValueRetries(t *testing.T) {
 	}
 }
 
-//func TestAddValueErrInsideWatchFirstGet(t *testing.T) {
+// func TestAddValueErrInsideWatchFirstGet(t *testing.T) {
 //	info := structs.Info{
 //		GlobalID:       42,
 //		SystemObjectID: "777",

@@ -1,23 +1,21 @@
 package main
 
 import (
-	"compress/gzip"
 	"context"
-	"github.com/jellydator/ttlcache/v3"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang-developer-test-task/infrastructure/redclient"
 	"golang-developer-test-task/structs"
-	"golang.org/x/sync/singleflight"
-	"io"
 	"net/http"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/jellydator/ttlcache/v3"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/sync/singleflight"
+
 	// https://github.com/uber-go/automaxprocs
-	//_ "go.uber.org/automaxprocs"
+	// _ "go.uber.org/automaxprocs"
 	"go.uber.org/zap"
 )
 
@@ -42,17 +40,19 @@ var (
 		[]string{"method"})
 )
 
-func init() {
-	prometheus.MustRegister(statusCounter)
-	prometheus.MustRegister(timings)
-	prometheus.MustRegister(counter)
-}
+// func init() {
+//	prometheus.MustRegister(statusCounter)
+//	prometheus.MustRegister(timings)
+//	prometheus.MustRegister(counter)
+//}
 
+// StatusRecorder saves status from http.ResponseWriter
 type StatusRecorder struct {
 	http.ResponseWriter
 	Status int
 }
 
+// WriteHeader saves status for further use
 func (r *StatusRecorder) WriteHeader(status int) {
 	r.Status = status
 	r.ResponseWriter.WriteHeader(status)
@@ -75,7 +75,7 @@ func timeTrackingMiddleware(next http.Handler) http.Handler {
 			Inc()
 		timings.
 			WithLabelValues(r.URL.Path).
-			Observe(float64(time.Since(start).Seconds()))
+			Observe(time.Since(start).Seconds())
 		counter.
 			WithLabelValues(r.URL.Path).
 			Inc()
@@ -83,31 +83,36 @@ func timeTrackingMiddleware(next http.Handler) http.Handler {
 }
 
 // Gzip Compression
-type gzipResponseWriter struct {
-	io.Writer
-	http.ResponseWriter
-}
+// type gzipResponseWriter struct {
+//	io.Writer
+//	http.ResponseWriter
+//}
+//
+// func (w gzipResponseWriter) Write(b []byte) (int, error) {
+//	return w.Writer.Write(b)
+//}
 
-func (w gzipResponseWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
-}
-
-func Gzip(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			handler.ServeHTTP(w, r)
-			return
-		}
-		w.Header().Set("Content-Encoding", "gzip")
-		gz := gzip.NewWriter(w)
-		defer gz.Close()
-		gzw := gzipResponseWriter{Writer: gz, ResponseWriter: w}
-		handler.ServeHTTP(gzw, r)
-	})
-}
+// func Gzip(handler http.Handler) http.Handler {
+//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+//		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+//			handler.ServeHTTP(w, r)
+//			return
+//		}
+//		w.Header().Set("Content-Encoding", "gzip")
+//		gz := gzip.NewWriter(w)
+//		defer gz.Close()
+//		gzw := gzipResponseWriter{Writer: gz, ResponseWriter: w}
+//		handler.ServeHTTP(gzw, r)
+//	})
+// }
 
 func main() {
 	runtime.GOMAXPROCS(2)
+
+	prometheus.MustRegister(statusCounter)
+	prometheus.MustRegister(timings)
+	prometheus.MustRegister(counter)
+
 	port := "8080"
 
 	logger, err := zap.NewProduction()
@@ -138,23 +143,23 @@ func main() {
 		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
 	go cache.Start()
 
-	//respCache := ttlcache.New[string, string](
+	// respCache := ttlcache.New[string, string](
 	//	ttlcache.WithTTL[string, string](timeout))
-	//go respCache.Start()
+	// go respCache.Start()
 
-	//var pool = &sync.Pool{
+	// var pool = &sync.Pool{
 	//	New: func() interface{} {
 	//		s := structs.SearchObject{}
 	//		return &s
 	//	}}
-	//var pool1 = &sync.Pool{
+	// var pool1 = &sync.Pool{
 	//	New: func() interface{} {
 	//		s := structs.PaginationObject{}
 	//		return &s
 	//	},
 	//}
 
-	//dbLogic := NewDBProcessor(client, logger, s, cache, pool, pool1)
+	// dbLogic := NewDBProcessor(client, logger, s, cache, pool, pool1)
 	dbLogic := NewDBProcessor(client, logger, s, cache)
 	mux := http.NewServeMux()
 
@@ -172,8 +177,8 @@ func main() {
 	mux.HandleFunc("/", dbLogic.HandleMainPage)
 
 	wrappedHandler := timeTrackingMiddleware(mux)
-	//wrappedHandler := Gzip(timeTrackingMiddleware(mux))
-	//wrappedHandler := timeTrackingMiddleware(Gzip(mux))
+	// wrappedHandler := Gzip(timeTrackingMiddleware(mux))
+	// wrappedHandler := timeTrackingMiddleware(Gzip(mux))
 
 	err = http.ListenAndServe(":"+port, wrappedHandler)
 	if err != nil {

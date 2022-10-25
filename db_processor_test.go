@@ -5,10 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jellydator/ttlcache/v3"
 	"golang-developer-test-task/infrastructure/redclient"
 	"golang-developer-test-task/structs"
-	"golang.org/x/sync/singleflight"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -18,6 +16,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/jellydator/ttlcache/v3"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/go-redis/redismock/v8"
 	"github.com/mailru/easyjson"
