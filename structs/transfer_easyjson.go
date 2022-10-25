@@ -234,7 +234,7 @@ func easyjsonD0c14475EncodeGolangDeveloperTestTaskStructs1(out *jwriter.Writer, 
 		}
 		out.String(string(*in.ModeEn))
 	}
-	{
+	if in.Offset != 0 {
 		const prefix string = ",\"offset\":"
 		if first {
 			first = false

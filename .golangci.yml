@@ -7,7 +7,6 @@ run:
 
 linters:
   enable:
-    - deadcode
     - errcheck
     - gosimple
     - revive
@@ -16,7 +15,6 @@ linters:
     - staticcheck
     - typecheck
     - unused
-    - varcheck
     - nilerr
     - goimports
     - gocognit
@@ -33,6 +31,7 @@ linters:
 issues:
   exclude:
     - composites
+    - package-comments
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
