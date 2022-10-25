@@ -25,7 +25,7 @@ func (r *RedisClient) AddValue(ctx context.Context, info structs.Info) (err erro
 
 	txf := func(tx *redis.Tx) error {
 		err := tx.Get(ctx, info.SystemObjectID).Err()
-		if err != nil {
+		if err != nil && err != redis.Nil {
 			return err
 		}
 
@@ -43,6 +43,75 @@ func (r *RedisClient) AddValue(ctx context.Context, info structs.Info) (err erro
 
 	for i := 0; i < r.MaxRetries; i++ {
 		err = r.Watch(ctx, txf, info.SystemObjectID, globalID, id, idEn, mode, modeEn)
+		if !errors.Is(err, redis.TxFailedErr) {
+			// if err != redis.TxFailedErr {
+			// fmt.Printf("%v ahaha", err)
+			return err
+		}
+	}
+	return err
+}
+
+// AddValues add infos to Redis storage
+func (r *RedisClient) AddValues(ctx context.Context, infos structs.InfoList) (err error) {
+	if len(infos) == 0 {
+		return
+	}
+	size := len(infos)
+	bss := make([][]byte, size)
+	systemIDs := make([]string, size)
+	globalIDs := make([]string, size)
+	ids := make([]string, size)
+	idEns := make([]string, size)
+	modes := make([]string, size)
+	modeEns := make([]string, size)
+	keys := make([]string, 0, size*6)
+
+	for i := range bss {
+		bss[i], _ = jsoniter.Marshal(infos[i])
+		globalID := fmt.Sprintf("global_id:%d", infos[i].GlobalID)
+		id := fmt.Sprintf("id:%d", infos[i].ID)
+		idEn := fmt.Sprintf("id_en:%d", infos[i].IDEn)
+		mode := fmt.Sprintf("mode:%s", infos[i].Mode)
+		modeEn := fmt.Sprintf("mode_en:%s", infos[i].ModeEn)
+		systemIDs[i] = infos[i].SystemObjectID
+		globalIDs[i] = globalID
+		ids[i] = id
+		idEns[i] = idEn
+		modes[i] = mode
+		modeEns[i] = modeEn
+		keys = append(keys, systemIDs[i])
+		keys = append(keys, globalID)
+		keys = append(keys, id)
+		keys = append(keys, idEn)
+		keys = append(keys, mode)
+		keys = append(keys, modeEn)
+	}
+
+	txf := func(tx *redis.Tx) error {
+		for _, systemID := range systemIDs {
+			err := tx.Get(ctx, systemID).Err()
+			if err != nil && err != redis.Nil {
+				return err
+			}
+		}
+
+		_, err := tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+			for i := range bss {
+				pipe.Set(ctx, systemIDs[i], bss[i], 0)
+				pipe.Set(ctx, globalIDs[i], systemIDs[i], 0)
+				pipe.Set(ctx, ids[i], systemIDs[i], 0)
+				pipe.Set(ctx, idEns[i], systemIDs[i], 0)
+				pipe.RPush(ctx, modes[i], systemIDs[i])
+				pipe.RPush(ctx, modeEns[i], systemIDs[i])
+			}
+			return nil
+		})
+		return err
+	}
+
+	for i := 0; i < r.MaxRetries; i++ {
+		err = r.Watch(ctx, txf, keys...)
 		if !errors.Is(err, redis.TxFailedErr) {
 			// if err != redis.TxFailedErr {
 			// fmt.Printf("%v ahaha", err)

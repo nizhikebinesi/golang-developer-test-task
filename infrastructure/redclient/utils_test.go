@@ -591,31 +591,31 @@ func TestAddValueRetries(t *testing.T) {
 	}
 }
 
-func TestAddValueErrInsideWatchFirstGet(t *testing.T) {
-	info := structs.Info{
-		GlobalID:       42,
-		SystemObjectID: "777",
-		ID:             1,
-		IDEn:           9,
-		Mode:           "abc",
-		ModeEn:         "cba",
-	}
-
-	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
-	id := fmt.Sprintf("id:%d", info.ID)
-	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%s", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
-
-	maxRetries := 1
-	db, mock := redismock.NewClientMock()
-	mock.ExpectWatch(info.SystemObjectID, globalID, id,
-		idEn, mode, modeEn)
-	mock.ExpectGet(info.SystemObjectID).SetErr(redis.Nil)
-	client := &RedisClient{Client: *db, MaxRetries: maxRetries}
-
-	err := client.AddValue(context.Background(), info)
-	if err != redis.Nil {
-		t.Fatal(err)
-	}
-}
+//func TestAddValueErrInsideWatchFirstGet(t *testing.T) {
+//	info := structs.Info{
+//		GlobalID:       42,
+//		SystemObjectID: "777",
+//		ID:             1,
+//		IDEn:           9,
+//		Mode:           "abc",
+//		ModeEn:         "cba",
+//	}
+//
+//	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
+//	id := fmt.Sprintf("id:%d", info.ID)
+//	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
+//	mode := fmt.Sprintf("mode:%s", info.Mode)
+//	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
+//
+//	maxRetries := 1
+//	db, mock := redismock.NewClientMock()
+//	mock.ExpectWatch(info.SystemObjectID, globalID, id,
+//		idEn, mode, modeEn)
+//	mock.ExpectGet(info.SystemObjectID).SetErr(redis.Nil)
+//	client := &RedisClient{Client: *db, MaxRetries: maxRetries}
+//
+//	err := client.AddValue(context.Background(), info)
+//	if err != redis.Nil {
+//		t.Fatal(err)
+//	}
+//}

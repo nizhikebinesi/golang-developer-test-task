@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jellydator/ttlcache/v3"
 	"golang-developer-test-task/infrastructure/redclient"
 	"golang-developer-test-task/structs"
+	"golang.org/x/sync/singleflight"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/go-redis/redismock/v8"
 	"github.com/mailru/easyjson"
@@ -35,8 +38,15 @@ func TestProcessJSONsReadAllErr(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 	err := processor.processJSONs(errReader(0), processor.saveInfo)
 	if err.Error() != "test error" {
 		t.Fatal(err)
@@ -52,7 +62,15 @@ func TestHandleMainPage(t *testing.T) {
 		_ = logger.Sync()
 	}()
 
-	processor := NewDBProcessor(client, logger)
+	s := &singleflight.Group{}
+
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	req := httptest.NewRequest("GET", "/", nil)
 	res := httptest.NewRecorder()
@@ -73,7 +91,15 @@ func TestHandleMainPageBadRequest(t *testing.T) {
 		_ = logger.Sync()
 	}()
 
-	processor := NewDBProcessor(client, logger)
+	s := &singleflight.Group{}
+
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	req := httptest.NewRequest("POST", "/", nil)
 	res := httptest.NewRecorder()
@@ -94,7 +120,15 @@ func TestSearchURLErrReader(t *testing.T) {
 		_ = logger.Sync()
 	}()
 
-	processor := NewDBProcessor(client, logger)
+	s := &singleflight.Group{}
+
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	req := httptest.NewRequest("POST", "/api/search", errReader(0))
 	res := httptest.NewRecorder()
@@ -114,8 +148,15 @@ func TestHandleSearchBadRequest(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	req := httptest.NewRequest("GET", "/api/search", nil)
 	res := httptest.NewRecorder()
@@ -140,8 +181,8 @@ func TestHandleSearchMode(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%group", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
+	mode := fmt.Sprintf("mode:%s", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -173,7 +214,15 @@ func TestHandleSearchMode(t *testing.T) {
 		_ = logger.Sync()
 	}()
 
-	processor := NewDBProcessor(client, logger)
+	s := &singleflight.Group{}
+
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	searchObject := structs.SearchObject{Mode: &info.Mode}
 	bs1, _ := easyjson.Marshal(searchObject)
@@ -224,8 +273,8 @@ func TestHandleSearchModeEn(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%group", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
+	mode := fmt.Sprintf("mode:%s", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -256,8 +305,15 @@ func TestHandleSearchModeEn(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	searchObject := structs.SearchObject{ModeEn: &info.ModeEn}
 	bs1, _ := easyjson.Marshal(searchObject)
@@ -308,8 +364,8 @@ func TestHandleSearchID(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%group", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
+	mode := fmt.Sprintf("mode:%s", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -338,8 +394,15 @@ func TestHandleSearchID(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	searchObject := structs.SearchObject{ID: &info.ID}
 	bs1, _ := easyjson.Marshal(searchObject)
@@ -390,8 +453,8 @@ func TestHandleSearchIDEn(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%group", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
+	mode := fmt.Sprintf("mode:%s", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -420,8 +483,15 @@ func TestHandleSearchIDEn(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	searchObject := structs.SearchObject{IDEn: &info.IDEn}
 	bs1, _ := easyjson.Marshal(searchObject)
@@ -472,8 +542,8 @@ func TestHandleSearchSystemObjectID(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%group", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
+	mode := fmt.Sprintf("mode:%s", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -501,8 +571,15 @@ func TestHandleSearchSystemObjectID(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	searchObject := structs.SearchObject{SystemObjectID: &info.SystemObjectID}
 	bs1, _ := easyjson.Marshal(searchObject)
@@ -553,8 +630,8 @@ func TestHandleSearchGlobalID(t *testing.T) {
 	globalID := fmt.Sprintf("global_id:%d", info.GlobalID)
 	id := fmt.Sprintf("id:%d", info.ID)
 	idEn := fmt.Sprintf("id_en:%d", info.IDEn)
-	mode := fmt.Sprintf("mode:%group", info.Mode)
-	modeEn := fmt.Sprintf("mode_en:%group", info.ModeEn)
+	mode := fmt.Sprintf("mode:%s", info.Mode)
+	modeEn := fmt.Sprintf("mode_en:%s", info.ModeEn)
 
 	bs, _ := easyjson.Marshal(info)
 
@@ -583,8 +660,15 @@ func TestHandleSearchGlobalID(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	searchObject := structs.SearchObject{GlobalID: &info.GlobalID}
 	bs1, _ := easyjson.Marshal(searchObject)
@@ -639,8 +723,15 @@ func TestHandleSearchErrDuringSearch(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	searchObject := structs.SearchObject{GlobalID: &info.GlobalID}
 	bs1, _ := easyjson.Marshal(searchObject)
@@ -665,8 +756,15 @@ func TestHandleLoadFromURLErrReader(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	req := httptest.NewRequest("POST", "/api/load_from_url", errReader(0))
 	res := httptest.NewRecorder()
@@ -686,8 +784,15 @@ func TestHandleLoadFromURLBadRequest(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	req := httptest.NewRequest("GET", "/api/load_from_url", nil)
 	res := httptest.NewRecorder()
@@ -712,8 +817,15 @@ func TestHandleLoadFromURLResourceWithoutFile(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	urlObject := structs.URLObject{URL: server.URL}
 	bs, err := easyjson.Marshal(urlObject)
@@ -747,8 +859,15 @@ func TestHandleLoadFromURLResourceWithoutFileButRightContentType(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	urlObject := structs.URLObject{URL: server.URL}
 	bs, err := easyjson.Marshal(urlObject)
@@ -782,8 +901,15 @@ func TestHandleLoadFromURLResourceBadFile(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	urlObject := structs.URLObject{URL: server.URL}
 	bs, err := easyjson.Marshal(urlObject)
@@ -809,8 +935,15 @@ func TestHandleLoadFromURLWrongResource(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	urlObject := structs.URLObject{URL: "https://a.a"}
 	bs, err := easyjson.Marshal(urlObject)
@@ -836,8 +969,15 @@ func TestHandleLoadFromURLWrongURLResource(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	urlObject := structs.URLObject{URL: "://192.1./1"}
 	bs, err := easyjson.Marshal(urlObject)
@@ -863,8 +1003,15 @@ func TestHandleLoadFromURLNilBody(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	req := httptest.NewRequest("POST", "/api/load_from_url", nil)
 	res := httptest.NewRecorder()
@@ -884,8 +1031,15 @@ func TestHandleLoadFileBadRequest(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	req := httptest.NewRequest("GET", "/api/load_file", nil)
 	res := httptest.NewRecorder()
@@ -905,8 +1059,15 @@ func TestHandleLoadFromURLWrongMethod(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 	req := httptest.NewRequest("POST", "/api/load_from_url", nil)
 	res := httptest.NewRecorder()
 	h := processor.methodMiddleware(processor.HandleLoadFromURL, "POST")
@@ -925,8 +1086,15 @@ func TestHandleLoadFileWrongMethod(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 	req := httptest.NewRequest("POST", "/api/load_file", nil)
 	res := httptest.NewRecorder()
 	h := processor.methodMiddleware(processor.HandleLoadFile, "POST")
@@ -946,8 +1114,15 @@ func TestHandleLoadFile(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	filePath := "test_data/data.json"
 	file, err := os.Open(filePath)
@@ -993,8 +1168,15 @@ func TestHandleLoadFileWithParenthesisProblem(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	filePath := "test_data/parenthesis_problem.json"
 	file, err := os.Open(filePath)
@@ -1040,8 +1222,15 @@ func TestHandleSearchWithoutNilSearchObject(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	req := httptest.NewRequest("POST", "/api/search", nil)
 	req.Header.Add("Content-Type", "application/json")
@@ -1063,8 +1252,15 @@ func TestHandleSearchWithoutNecessaryParamsInsideSearchObject(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	searchObject := structs.SearchObject{}
 	bs, _ := easyjson.Marshal(searchObject)
@@ -1089,8 +1285,15 @@ func TestHandleLoadFileWrongFileName(t *testing.T) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	s := &singleflight.Group{}
 
-	processor := NewDBProcessor(client, logger)
+	timeout := 5 * time.Minute
+
+	cache := ttlcache.New[string, structs.PaginationObject](
+		ttlcache.WithTTL[string, structs.PaginationObject](timeout))
+	go cache.Start()
+
+	processor := NewDBProcessor(client, logger, s, cache)
 
 	filePath := "test_data/data.json"
 	file, err := os.Open(filePath)

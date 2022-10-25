@@ -14,8 +14,8 @@ COPY . .
 RUN go build -o bin/app
 
 # FROM alpine:latest
-RUN apk add ca-certificates
-RUN apk add --update --no-cache curl
+#RUN apk add ca-certificates
+#RUN apk add --update --no-cache curl
 # COPY --from=build /usr/src/app/bin/app /usr/local/bin/app
 
 CMD ["/usr/src/app/bin/app"]
